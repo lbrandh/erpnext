@@ -16,7 +16,7 @@ from erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle impor
 	get_available_serial_nos,
 )
 from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
-from erpnext.stock.utils import get_stock_balance
+from erpnext.stock.utils import get_incoming_rate, get_stock_balance
 
 
 class OpeningEntryAccountError(frappe.ValidationError):
@@ -404,7 +404,9 @@ class StockReconciliation(StockController):
 					fields=["total_qty as qty", "avg_rate as rate"],
 				)[0]
 
+				bundle_data.qty = abs(bundle_data.qty)
 				self.calculate_difference_amount(item, bundle_data)
+
 				return True
 
 			inventory_dimensions_dict = {}
@@ -464,11 +466,16 @@ class StockReconciliation(StockController):
 			frappe.msgprint(_("Removed items with no change in quantity or value."))
 
 	def calculate_difference_amount(self, item, item_dict):
-		self.difference_amount += flt(item.qty, item.precision("qty")) * flt(
-			item.valuation_rate or item_dict.get("rate"), item.precision("valuation_rate")
-		) - flt(item_dict.get("qty"), item.precision("qty")) * flt(
-			item_dict.get("rate"), item.precision("valuation_rate")
-		)
+		qty_precision = item.precision("qty")
+		val_precision = item.precision("valuation_rate")
+
+		new_qty = flt(item.qty, qty_precision)
+		new_valuation_rate = flt(item.valuation_rate or item_dict.get("rate"), val_precision)
+
+		current_qty = flt(item_dict.get("qty"), qty_precision)
+		current_valuation_rate = flt(item_dict.get("rate"), val_precision)
+
+		self.difference_amount += (new_qty * new_valuation_rate) - (current_qty * current_valuation_rate)
 
 	def validate_data(self):
 		def _get_msg(row_num, msg):
@@ -945,14 +952,21 @@ class StockReconciliation(StockController):
 			precesion = row.precision("current_qty")
 			if flt(current_qty, precesion) != flt(row.current_qty, precesion):
 				if not row.serial_no:
-					val_rate = get_valuation_rate(
-						row.item_code,
-						row.warehouse,
-						self.doctype,
-						self.name,
-						company=self.company,
-						batch_no=row.batch_no,
-						serial_and_batch_bundle=row.current_serial_and_batch_bundle,
+					val_rate = get_incoming_rate(
+						frappe._dict(
+							{
+								"item_code": row.item_code,
+								"warehouse": row.warehouse,
+								"qty": current_qty * -1,
+								"serial_and_batch_bundle": row.current_serial_and_batch_bundle,
+								"batch_no": row.batch_no,
+								"voucher_type": self.doctype,
+								"voucher_no": self.name,
+								"company": self.company,
+								"posting_date": self.posting_date,
+								"posting_time": self.posting_time,
+							}
+						)
 					)
 
 				row.current_valuation_rate = val_rate

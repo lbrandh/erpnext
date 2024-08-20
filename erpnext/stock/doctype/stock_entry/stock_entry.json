@@ -21,6 +21,7 @@
   "sales_invoice_no",
   "pick_list",
   "purchase_receipt_no",
+  "asset_repair",
   "col2",
   "company",
   "posting_date",
@@ -82,7 +83,8 @@
   "total_amount",
   "amended_from",
   "credit_note",
-  "is_return"
+  "is_return",
+  "tab_connections"
  ],
  "fields": [
   {
@@ -301,7 +303,7 @@
    "depends_on": "from_warehouse",
    "fieldname": "source_warehouse_address",
    "fieldtype": "Link",
-   "label": "Source Warehouse Address",
+   "label": "Source Warehouse Address Link",
    "options": "Address"
   },
   {
@@ -331,7 +333,7 @@
    "depends_on": "to_warehouse",
    "fieldname": "target_warehouse_address",
    "fieldtype": "Link",
-   "label": "Target Warehouse Address",
+   "label": "Target Warehouse Address Link",
    "options": "Address"
   },
   {
@@ -674,6 +676,20 @@
   {
    "fieldname": "column_break_eaoa",
    "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.asset_repair",
+   "fieldname": "asset_repair",
+   "fieldtype": "Link",
+   "label": "Asset Repair",
+   "options": "Asset Repair",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tab_connections",
+   "fieldtype": "Tab Break",
+   "label": "Connections",
+   "show_dashboard": 1
   }
  ],
  "icon": "fa fa-file-text",
@@ -681,7 +697,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-03-27 13:10:43.701839",
+ "modified": "2024-08-13 19:02:42.386955",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock Entry",

@@ -146,7 +146,10 @@ def validate_returned_items(doc):
 def validate_quantity(doc, args, ref, valid_items, already_returned_items):
 	fields = ["stock_qty"]
 	if doc.doctype in ["Purchase Receipt", "Purchase Invoice", "Subcontracting Receipt"]:
-		fields.extend(["received_qty", "rejected_qty"])
+		if not args.get("return_qty_from_rejected_warehouse"):
+			fields.extend(["received_qty", "rejected_qty"])
+		else:
+			fields.extend(["received_qty"])
 
 	already_returned_data = already_returned_items.get(args.item_code) or {}
 
@@ -158,9 +161,12 @@ def validate_quantity(doc, args, ref, valid_items, already_returned_items):
 	for column in fields:
 		returned_qty = flt(already_returned_data.get(column, 0)) if len(already_returned_data) > 0 else 0
 
-		if column == "stock_qty":
+		if column == "stock_qty" and not args.get("return_qty_from_rejected_warehouse"):
 			reference_qty = ref.get(column)
 			current_stock_qty = args.get(column)
+		elif args.get("return_qty_from_rejected_warehouse"):
+			reference_qty = ref.get("rejected_qty") * ref.get("conversion_factor", 1.0)
+			current_stock_qty = args.get(column) * args.get("conversion_factor", 1.0)
 		else:
 			reference_qty = ref.get(column) * ref.get("conversion_factor", 1.0)
 			current_stock_qty = args.get(column) * args.get("conversion_factor", 1.0)
@@ -313,6 +319,8 @@ def make_return_doc(doctype: str, source_name: str, target_doc=None, return_agai
 	def set_missing_values(source, target):
 		doc = frappe.get_doc(target)
 		doc.is_return = 1
+		doc.ignore_pricing_rule = 1
+		doc.pricing_rules = []
 		doc.return_against = source.name
 		doc.set_warehouse = ""
 		if doctype == "Sales Invoice" or doctype == "POS Invoice":
@@ -472,6 +480,7 @@ def make_return_doc(doctype: str, source_name: str, target_doc=None, return_agai
 
 	def update_item(source_doc, target_doc, source_parent):
 		target_doc.qty = -1 * source_doc.qty
+		target_doc.pricing_rules = None
 		if doctype in ["Purchase Receipt", "Subcontracting Receipt"]:
 			returned_qty_map = get_returned_qty_map_for_row(
 				source_parent.name, source_parent.supplier, source_doc.name, doctype
@@ -634,6 +643,12 @@ def make_return_doc(doctype: str, source_name: str, target_doc=None, return_agai
 	def update_terms(source_doc, target_doc, source_parent):
 		target_doc.payment_amount = -source_doc.payment_amount
 
+	def item_condition(doc):
+		if return_against_rejected_qty:
+			return doc.rejected_qty
+
+		return doc.qty
+
 	doclist = get_mapped_doc(
 		doctype,
 		source_name,
@@ -648,6 +663,7 @@ def make_return_doc(doctype: str, source_name: str, target_doc=None, return_agai
 				"doctype": doctype + " Item",
 				"field_map": {"serial_no": "serial_no", "batch_no": "batch_no", "bom": "bom"},
 				"postprocess": update_item,
+				"condition": item_condition,
 			},
 			"Payment Schedule": {"doctype": "Payment Schedule", "postprocess": update_terms},
 		},
