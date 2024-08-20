@@ -6,6 +6,7 @@ import unittest
 
 import frappe
 from frappe.utils import add_to_date, now_datetime, nowdate
+from frappe.model.mapper import make_mapped_doc
 
 from erpnext.accounts.doctype.sales_invoice.test_sales_invoice import create_sales_invoice
 from erpnext.projects.doctype.timesheet.timesheet import OverlapError, make_sales_invoice
@@ -189,6 +190,161 @@ class TestTimesheet(unittest.TestCase):
 		ts.total_billed_amount = 200
 		ts.calculate_percentage_billed()
 		self.assertEqual(ts.per_billed, 100)
+
+	def test_timesheet_create_timesheet_from_project(self):
+		project_name = "_Test Project_Timesheet from Project"
+
+		#Reset
+		if frappe.db.exists("Project", {"project_name": project_name}):
+			deletable_project = frappe.get_doc("Project", {"project_name": project_name})
+			frappe.db.sql(""" delete from tabTask where project = %s """, deletable_project.name)
+			frappe.delete_doc("Project", deletable_project.name)
+
+		#Create base project for test
+		project = frappe.get_doc(
+			dict(
+				doctype="Project",
+				project_name=project_name,
+				status="Open",
+				expected_start_date=nowdate(),
+				company="_Test Company",
+			)).insert()
+
+		#Create timesheet from project
+		made_timesheet = make_mapped_doc('erpnext.projects.doctype.project.project.make_timesheet', project.name)
+		self.assertEqual(made_timesheet.doctype,'Timesheet')
+		self.assertEqual(made_timesheet.parent_project,project.name)
+		self.assertEqual(made_timesheet.customer,None)
+		self.assertEqual(made_timesheet.time_logs[0].project,project.name)
+		self.assertEqual(made_timesheet.time_logs[0].task,None)
+		self.assertEqual(made_timesheet.time_logs[0].expected_hours,0.0)
+
+
+	def test_timesheet_create_timesheet_from_project_with_customer(self):
+		project_name = "_Test Project_Timesheet from Project w Customer"
+		customer_name = "_Test Customer_Timesheet from Project w Customer"
+
+		if frappe.db.exists("Project", {"project_name": project_name}):
+			deletable_project = frappe.get_doc("Project", {"project_name": project_name})
+			frappe.db.sql(""" delete from tabTask where project = %s """, deletable_project.name)
+			frappe.delete_doc("Project", deletable_project.name)
+
+		#Create customer
+		customer = frappe.get_doc(
+			dict(
+				doctype="Customer",
+				customer_name = customer_name,
+				company="_Test Company",
+			)).insert()
+		
+		#Create project with customer	
+		project = frappe.get_doc(
+			dict(
+				doctype="Project",
+				project_name=project_name,
+				status="Open",
+				expected_start_date=nowdate(),
+				company="_Test Company",
+				customer = customer
+			)).insert()
+
+		#Create timesheet from project
+		made_timesheet = make_mapped_doc('erpnext.projects.doctype.project.project.make_timesheet', project.name)
+		self.assertEqual(made_timesheet.doctype,'Timesheet')
+		self.assertEqual(made_timesheet.parent_project,project.name)
+		self.assertEqual(made_timesheet.customer,customer.name)
+		self.assertEqual(made_timesheet.time_logs[0].project,project.name)
+		self.assertEqual(made_timesheet.time_logs[0].task,None)
+		self.assertEqual(made_timesheet.time_logs[0].expected_hours,0.0)
+
+
+	def test_timesheet_create_timesheet_from_task(self):
+		project_name = "_Test Project_Timesheet from Task"
+		task_name = "_Test Task_Timesheet from Task"
+
+		#Reset
+		if frappe.db.exists("Project", {"project_name": project_name}):
+			deletable_project = frappe.get_doc("Project", {"project_name": project_name})
+			frappe.db.sql(""" delete from tabTask where project = %s """, deletable_project.name)
+			frappe.delete_doc("Project", deletable_project.name)
+
+		#Create base project for test
+		project = frappe.get_doc(
+			dict(
+				doctype="Project",
+				project_name=project_name,
+				status="Open",
+				expected_start_date=nowdate(),
+				company="_Test Company",
+			)).insert()
+
+		#Create base task for test
+		task = frappe.get_doc(
+			dict(
+				doctype="Task",
+				subject=task_name,
+				project=project.name,
+				status="Open",
+				expected_hours=120.0,
+			)).insert()
+		
+		#Create timesheet from project
+		made_timesheet = make_mapped_doc('erpnext.projects.doctype.task.task.make_timesheet', task.name)
+		self.assertEqual(made_timesheet.doctype,'Timesheet')
+		self.assertEqual(made_timesheet.parent_project,project.name)
+		self.assertEqual(made_timesheet.customer,None)
+		self.assertEqual(made_timesheet.time_logs[0].project,project.name)
+		self.assertEqual(made_timesheet.time_logs[0].task,task.name)
+		self.assertEqual(made_timesheet.time_logs[0].expected_hours,120.0)
+
+	def test_timesheet_create_timesheet_from_task_with_customer(self):
+		project_name = "_Test Project_Timesheet from Task w Customer"
+		task_name = "_Test Task_Timesheet from Task w Customer"
+		customer_name = "_Test Customer_Timesheet from Task w Customer"
+
+		if frappe.db.exists("Project", {"project_name": project_name}):
+			deletable_project = frappe.get_doc("Project", {"project_name": project_name})
+			frappe.db.sql(""" delete from tabTask where project = %s """, deletable_project.name)
+			frappe.delete_doc("Project", deletable_project.name)
+
+		#Create customer
+		customer = frappe.get_doc(
+			dict(
+				doctype="Customer",
+				customer_name = customer_name,
+				company="_Test Company",
+			)).insert()
+		
+		#Create project with customer	
+		project = frappe.get_doc(
+			dict(
+				doctype="Project",
+				project_name=project_name,
+				status="Open",
+				expected_start_date=nowdate(),
+				company="_Test Company",
+				customer = customer
+			)).insert()
+		
+		#Create base task for test
+		task = frappe.get_doc(
+			dict(
+				doctype="Task",
+				subject=task_name,
+				project=project.name,
+				status="Open",
+				expected_hours=120.0,
+				
+			)).insert()
+
+		#Create timesheet from project
+		made_timesheet = make_mapped_doc('erpnext.projects.doctype.task.task.make_timesheet', task.name)
+		self.assertEqual(made_timesheet.doctype,'Timesheet')
+		self.assertEqual(made_timesheet.parent_project,project.name)
+		self.assertEqual(made_timesheet.customer,customer.name)
+		self.assertEqual(made_timesheet.time_logs[0].project,project.name)
+		self.assertEqual(made_timesheet.time_logs[0].task,task.name)
+		self.assertEqual(made_timesheet.time_logs[0].expected_hours,120.0)
 
 
 def make_timesheet(

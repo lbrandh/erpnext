@@ -14,19 +14,78 @@ erpnext.timesheet.timer = function (frm, row, timestamp = 0) {
 			{ fieldtype: "Link", label: __("Project"), fieldname: "project", options: "Project" },
 			{ fieldtype: "Link", label: __("Task"), fieldname: "task", options: "Task" },
 			{ fieldtype: "Float", label: __("Expected Hrs"), fieldname: "expected_hours" },
+			{ fieldtype: "Small Text", label: __("Description"), fieldname: "description" },
 			{ fieldtype: "Section Break" },
 			{ fieldtype: "HTML", fieldname: "timer_html" },
 		],
 	});
-
+	if (frm.doc.parent_project)
+	{
+	dialog.fields_dict.project.get_query = function() {
+		return {
+			filters: {
+				name: frm.doc.parent_project,
+				status: 'Open'
+			}
+		};};
+	}else{
+		dialog.fields_dict.project.get_query = function() {
+			return {
+				filters: {
+					status: 'Open'
+				}
+			};};
+	}
+	dialog.fields_dict.task.get_query = function() {
+		const project_name = dialog.get_value("project");
+		if (project_name)
+		{
+		return {
+			filters: {
+				status: ["in", ["Open","Working","Overdue"]],
+				project: project_name
+			}
+		};
+		}else{
+			return {
+				filters: {
+					status: ["in", ["Open","Working","Overdue"]]
+				}
+			};
+		}
+	};
 	if (row) {
 		dialog.set_values({
 			activity_type: row.activity_type,
 			project: row.project,
 			task: row.task,
 			expected_hours: row.expected_hours,
+			description: row.description
 		});
 	}
+	else{ // When starting the timer from an empty timesheet
+			if (frm.doc.time_logs.length>0)
+			{
+				dialog.set_values({
+					'activity_type': frappe.get_doc("DocType","Timesheet Detail").fields.find(obj => { return obj.fieldname === "activity_type"}).default,
+					'project': frm.doc.parent_project,
+					'task': frm.doc.time_logs[0].task,
+					'expected_hours': frm.doc.time_logs[0].expected_hours,
+					'description': frm.doc.time_logs[0].description
+				});
+			}
+			else{
+				dialog.set_values({
+					'activity_type': frappe.get_doc("DocType","Timesheet Detail").fields.find(obj => { return obj.fieldname === "activity_type"}).default,
+					'project': frm.doc.parent_project,
+				});
+			}
+			}
+	//if (frm.doc.parent_project)
+	//	{
+	//		var field = dialog.get_field("project");
+	//		field.$input.prop('readonly', true);
+	//	}	
 	dialog.get_field("timer_html").$wrapper.append(get_timer_html());
 	function get_timer_html() {
 		return `
@@ -71,6 +130,7 @@ erpnext.timesheet.control_timer = function (frm, dialog, row, timestamp = 0) {
 		if (!initialized) {
 			// New activity if no activities found
 			var args = dialog.get_values();
+			dialog.hide();
 			if (!args) return;
 			if (
 				frm.doc.time_logs.length == 1 &&
@@ -85,6 +145,7 @@ erpnext.timesheet.control_timer = function (frm, dialog, row, timestamp = 0) {
 			row.project = args.project;
 			row.task = args.task;
 			row.expected_hours = args.expected_hours;
+			row.description = args.description;
 			row.completed = 0;
 			let d = moment(row.from_time);
 			if (row.expected_hours) {
@@ -114,11 +175,19 @@ erpnext.timesheet.control_timer = function (frm, dialog, row, timestamp = 0) {
 		var args = dialog.get_values();
 		grid_row.doc.completed = 1;
 		grid_row.doc.activity_type = args.activity_type;
-		grid_row.doc.project = args.project;
+		if (frm.doc.parent_project)
+		{
+			grid_row.doc.project = frm.doc.parent_project;
+		}	
+		else
+		{
+			grid_row.doc.project = args.project;
+		}
 		grid_row.doc.task = args.task;
 		grid_row.doc.expected_hours = args.expected_hours;
-		grid_row.doc.hours = currentIncrement / 3600;
-		grid_row.doc.to_time = frappe.datetime.now_datetime();
+		grid_row.doc.hours = Math.round(currentIncrement /60)/ 60;
+		grid_row.doc.to_time = frappe.datetime.get_datetime_as_string();
+		grid_row.doc.description = args.description;
 		grid_row.refresh();
 		frm.dirty();
 		frm.save();

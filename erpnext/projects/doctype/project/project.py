@@ -11,6 +11,7 @@ from frappe.query_builder import Interval
 from frappe.query_builder.functions import Count, CurDate, Date, Sum, UnixTimestamp
 from frappe.utils import add_days, flt, get_datetime, get_time, get_url, nowtime, today
 from frappe.utils.user import is_website_user
+from frappe.model.mapper import get_mapped_doc
 
 from erpnext import get_default_company
 from erpnext.controllers.queries import get_filters_cond
@@ -213,6 +214,11 @@ class Project(Document):
 		frappe.db.set_value("Sales Order", {"project": self.name}, "project", "")
 
 	def update_percent_complete(self):
+		if self.status == "Completed":
+			if len(frappe.get_all("Task", dict(project=self.name)))==0: #A project without tasks should be able to complete
+				self.percent_complete_method = "Manual"
+				self.percent_complete=100
+
 		if self.percent_complete_method == "Manual":
 			if self.status == "Completed":
 				self.percent_complete = 100
@@ -766,3 +772,25 @@ def recalculate_project_total_purchase_cost(project: str | None = None):
 			"total_purchase_cost",
 			(total_purchase_cost and total_purchase_cost[0][0] or 0),
 		)
+
+@frappe.whitelist()
+def make_timesheet(source_name, target_doc=None, ignore_permissions=False):
+	def set_missing_values(source, target):
+		target.append(
+			"time_logs",
+			{
+				"project": source.name,
+				"customer": source.customer,
+			},
+		)
+
+	doclist = get_mapped_doc(
+		"Project",
+		source_name,
+		{"Project": {"doctype": "Timesheet"}},
+		target_doc,
+		postprocess=set_missing_values,
+		ignore_permissions=ignore_permissions,
+	)
+
+	return doclist
