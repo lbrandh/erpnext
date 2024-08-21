@@ -83,7 +83,7 @@ def get_chart_data(data):
 	overdue = []
 
 	for project in data:
-		labels.append(project.name + ' : ' + project.project_name)
+		labels.append(project.name + " : " + project.project_name)
 		total.append(project.total_tasks)
 		completed.append(project.completed_tasks)
 		overdue.append(project.overdue_tasks)

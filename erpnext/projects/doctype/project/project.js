@@ -3,10 +3,11 @@
 frappe.ui.form.on("Project", {
 	setup(frm) {
 		frm.make_methods = {
-			'Timesheet': () => frappe.model.open_mapped_doc({
-				method: 'erpnext.projects.doctype.project.project.make_timesheet',
-				frm: frm
-			}),
+			Timesheet: () =>
+				frappe.model.open_mapped_doc({
+					method: "erpnext.projects.doctype.project.project.make_timesheet",
+					frm: frm,
+				}),
 			"Purchase Order": () => {
 				open_form(frm, "Purchase Order", "Purchase Order Item", "items");
 			},

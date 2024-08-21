@@ -7,11 +7,11 @@ from email_reply_parser import EmailReplyParser
 from frappe import _, qb
 from frappe.desk.reportview import get_match_cond
 from frappe.model.document import Document
+from frappe.model.mapper import get_mapped_doc
 from frappe.query_builder import Interval
 from frappe.query_builder.functions import Count, CurDate, Date, Sum, UnixTimestamp
 from frappe.utils import add_days, flt, get_datetime, get_time, get_url, nowtime, today
 from frappe.utils.user import is_website_user
-from frappe.model.mapper import get_mapped_doc
 
 from erpnext import get_default_company
 from erpnext.controllers.queries import get_filters_cond
@@ -215,9 +215,11 @@ class Project(Document):
 
 	def update_percent_complete(self):
 		if self.status == "Completed":
-			if len(frappe.get_all("Task", dict(project=self.name)))==0: #A project without tasks should be able to complete
+			if (
+				len(frappe.get_all("Task", dict(project=self.name))) == 0
+			):  # A project without tasks should be able to complete
 				self.percent_complete_method = "Manual"
-				self.percent_complete=100
+				self.percent_complete = 100
 
 		if self.percent_complete_method == "Manual":
 			if self.status == "Completed":
@@ -771,6 +773,7 @@ def recalculate_project_total_purchase_cost(project: str | None = None):
 			"total_purchase_cost",
 			(total_purchase_cost and total_purchase_cost[0][0] or 0),
 		)
+
 
 @frappe.whitelist()
 def make_timesheet(source_name, target_doc=None, ignore_permissions=False):

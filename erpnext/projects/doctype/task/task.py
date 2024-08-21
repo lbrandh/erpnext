@@ -356,7 +356,7 @@ def set_tasks_as_overdue():
 def make_timesheet(source_name, target_doc=None, ignore_permissions=False):
 	def set_missing_values(source, target):
 		target.parent_project = source.project
-		time_log_dict={
+		time_log_dict = {
 			"expected_hours": source.expected_time,
 			"completed": source.status == "Completed",
 			"project": source.project,
@@ -364,7 +364,7 @@ def make_timesheet(source_name, target_doc=None, ignore_permissions=False):
 		}
 		if target.parent_project is not None:
 			target.customer = frappe.get_doc("Project", source.project).customer
-			time_log_dict["customer"]=target.customer
+			time_log_dict["customer"] = target.customer
 		target.append(
 			"time_logs",
 			time_log_dict,

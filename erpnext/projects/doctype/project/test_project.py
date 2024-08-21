@@ -205,7 +205,7 @@ class TestProject(FrappeTestCase):
 		frappe.delete_doc("Project", project_name)
 
 		project = get_project(project_name)
-		
+
 		tasks = frappe.get_all(
 			"Task",
 			["subject", "exp_end_date", "depends_on_tasks", "name", "parent_task"],
@@ -217,7 +217,8 @@ class TestProject(FrappeTestCase):
 		self.assertEqual(len(tasks), 0)
 		project.status = "Completed"
 		project.save()
-		self.assertEqual(project.status, "Completed")		
+		self.assertEqual(project.status, "Completed")
+
 
 def get_project(name, template):
 	project = frappe.get_doc(
