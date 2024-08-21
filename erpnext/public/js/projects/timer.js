@@ -130,30 +130,34 @@ erpnext.timesheet.control_timer = function (frm, dialog, row, timestamp = 0) {
 		if (!initialized) {
 			// New activity if no activities found
 			var args = dialog.get_values();
-			dialog.hide();
 			if (!args) return;
-			if (
-				frm.doc.time_logs.length == 1 &&
-				!frm.doc.time_logs[0].activity_type &&
-				!frm.doc.time_logs[0].from_time
-			) {
-				frm.doc.time_logs = [];
+			if (args.project==frm.doc.parent_project)
+			{
+				if (
+					frm.doc.time_logs.length == 1 &&
+					!frm.doc.time_logs[0].activity_type &&
+					!frm.doc.time_logs[0].from_time
+				) {
+					frm.doc.time_logs = [];
+				}
+				row = frappe.model.add_child(frm.doc, "Timesheet Detail", "time_logs");
+				row.activity_type = args.activity_type;
+				row.from_time = frappe.datetime.get_datetime_as_string();
+				row.project = args.project;
+				row.task = args.task;
+				row.expected_hours = args.expected_hours;
+				row.description = args.description;
+				row.completed = 0;
+				let d = moment(row.from_time);
+				if (row.expected_hours) {
+					d.add(row.expected_hours, "hours");
+					row.to_time = d.format(frappe.defaultDatetimeFormat);
+				}
+				frm.refresh_field("time_logs");
+				frm.save();
 			}
-			row = frappe.model.add_child(frm.doc, "Timesheet Detail", "time_logs");
-			row.activity_type = args.activity_type;
-			row.from_time = frappe.datetime.get_datetime_as_string();
-			row.project = args.project;
-			row.task = args.task;
-			row.expected_hours = args.expected_hours;
-			row.description = args.description;
-			row.completed = 0;
-			let d = moment(row.from_time);
-			if (row.expected_hours) {
-				d.add(row.expected_hours, "hours");
-				row.to_time = d.format(frappe.defaultDatetimeFormat);
-			}
-			frm.refresh_field("time_logs");
-			frm.save();
+			else frappe.throw(__('Project must be same as the one set in the Timesheet'));
+			dialog.hide();
 		}
 
 		if (clicked) {
